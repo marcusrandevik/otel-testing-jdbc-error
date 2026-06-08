@@ -1,17 +1,44 @@
 package example.testing;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import org.postgresql.ds.PGSimpleDataSource;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
+
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+        String url = "jdbc:postgresql://localhost:8989/postgres";
+        String user = "postgres";
+        String password = "postgres";
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+        var dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(url);
+        dataSource.setUser(user);
+        dataSource.setPassword(password);
+        var jdbcWrapper = JdbcTelemetry.create(GlobalOpenTelemetry.get()).wrap(dataSource);
+
+        try (Connection connection = jdbcWrapper.getConnection()) {
+            System.out.println("Connected to PostgreSQL test database");
+
+            String sql = "SELECT version()";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql);
+                 ResultSet resultSet = statement.executeQuery()) {
+
+                if (resultSet.next()) {
+                    System.out.println("PostgreSQL version: " + resultSet.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Failed to connect to PostgreSQL");
+            e.printStackTrace();
         }
     }
 }
